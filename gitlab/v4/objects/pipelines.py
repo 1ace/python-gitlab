@@ -18,13 +18,13 @@ from gitlab.mixins import (
     UpdateMixin,
 )
 from gitlab.types import RequiredOptional
+from gitlab.v4.objects.jobs import ProjectJob
 
 __all__ = [
     "ProjectMergeRequestPipeline",
     "ProjectMergeRequestPipelineManager",
     "ProjectPipeline",
     "ProjectPipelineManager",
-    "ProjectPipelineJob",
     "ProjectPipelineJobManager",
     "ProjectPipelineBridge",
     "ProjectPipelineBridgeManager",
@@ -140,15 +140,18 @@ class ProjectPipelineManager(RetrieveMixin, CreateMixin, DeleteMixin, RESTManage
         )
 
 
-class ProjectPipelineJob(RESTObject):
-    pass
-
-
 class ProjectPipelineJobManager(ListMixin, RESTManager):
     _path = "/projects/{project_id}/pipelines/{pipeline_id}/jobs"
-    _obj_cls = ProjectPipelineJob
+    _obj_cls = ProjectJob
     _from_parent_attrs = {"project_id": "project_id", "pipeline_id": "id"}
     _list_filters = ("scope", "include_retried")
+
+    def list(self, lazy: bool = False, **kwargs: Any) -> list[ProjectJob]:
+        project = self.gitlab.projects.get(self.parent_attrs['project_id'])
+        return [
+            project.jobs.get(pipeline_job.id, lazy=lazy)
+            for pipeline_job in super().list(**kwargs)
+        ]
 
 
 class ProjectPipelineBridge(RESTObject):
